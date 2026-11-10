@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Only these Google accounts can open or change the register.
+    // Replace the example address and add one line per person.
+    function allowed() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in [
+          "you@gmail.com",
+          "colleague@gmail.com"
+        ];
+    }
+
+    match /tenders/{id} {
+      allow read, write: if allowed();
+    }
+
+    // Display names shown beside remarks.
+    match /users/{uid} {
+      allow read: if allowed();
+      allow write: if allowed() && request.auth.uid == uid;
+    }
+  }
+}

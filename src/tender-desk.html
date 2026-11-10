@@ -1,0 +1,957 @@
+<title>Tender Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky command bar + summary gauges, then one working view (register table, calendar, or entry form) with a slide-in tender file on the right. */
+:root{
+  --bg:#f3f5f6; --panel:#ffffff; --ink:#14232b; --muted:#5b6b73; --line:#d9e0e3; --soft:#e9eef0;
+  --accent:#0f5f73; --accent-ink:#ffffff; --brass:#b07a1e;
+  --won:#1f7a4d; --won-bg:#e2f3ea; --lost:#a33a2f; --lost-bg:#f8e5e2; --proc:#1d5aa6; --proc-bg:#e3ecf8;
+  --warn:#a5650a; --warn-bg:#fbefd9; --neutral-bg:#eceff1; --purple:#6b4aa6; --purple-bg:#ece6f7;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif; --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --shadow:0 10px 40px rgba(10,30,40,.18);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1619; --panel:#152126; --ink:#e3ecef; --muted:#93a4ab; --line:#26363d; --soft:#1b2a30;
+  --accent:#4fb3c9; --accent-ink:#06181d; --brass:#d9a54a;
+  --won:#5fcf95; --won-bg:#16342a; --lost:#f08a7e; --lost-bg:#3a1f1c; --proc:#86b4f0; --proc-bg:#1b2b42;
+  --warn:#f0b65a; --warn-bg:#3a2c14; --neutral-bg:#1f2d33; --purple:#b9a0ea; --purple-bg:#2b2440;
+  --shadow:0 10px 40px rgba(0,0,0,.5); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1619; --panel:#152126; --ink:#e3ecef; --muted:#93a4ab; --line:#26363d; --soft:#1b2a30;
+  --accent:#4fb3c9; --accent-ink:#06181d; --brass:#d9a54a;
+  --won:#5fcf95; --won-bg:#16342a; --lost:#f08a7e; --lost-bg:#3a1f1c; --proc:#86b4f0; --proc-bg:#1b2b42;
+  --warn:#f0b65a; --warn-bg:#3a2c14; --neutral-bg:#1f2d33; --purple:#b9a0ea; --purple-bg:#2b2440;
+  --shadow:0 10px 40px rgba(0,0,0,.5); color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:1400px;margin:0 auto}
+header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line)}
+.bar .wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:10px}
+.brand{font-family:var(--display);font-weight:700;font-size:22px;letter-spacing:.02em;display:flex;align-items:baseline;gap:8px}
+.brand small{font-family:var(--body);font-weight:500;font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+nav.tabs{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+.tab{border:1px solid transparent;background:none;padding:7px 14px;border-radius:6px;cursor:pointer;font-weight:600;color:var(--muted)}
+.tab:hover{background:var(--soft);color:var(--ink)}
+.tab[aria-selected="true"]{background:var(--soft);color:var(--ink);border-color:var(--line)}
+.tab.new{background:var(--accent);color:var(--accent-ink)}
+.tab.new[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn{border:1px solid var(--line);background:var(--panel);padding:7px 12px;border-radius:6px;cursor:pointer;font-weight:600;font-size:14px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{border-color:transparent;background:none}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.status-line{font-size:13px;color:var(--muted);padding-block:6px}
+.status-line.warn{color:var(--warn)}
+
+.gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;padding-block:14px 6px}
+.gauge{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;cursor:pointer;text-align:left}
+.gauge:hover{border-color:var(--muted)}
+.gauge .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.gauge .v{font-family:var(--display);font-size:30px;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+.gauge .s{font-size:12px;color:var(--muted)}
+.gauge.alert .v{color:var(--warn)}
+
+main{padding-block:10px 40px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.search{flex:1 1 260px;min-width:0;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+select.f{padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);max-width:100%}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip .n{font-variant-numeric:tabular-nums;opacity:.7;margin-left:4px}
+
+.tablebox{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;min-width:980px}
+th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;background:var(--soft);position:sticky;top:0;white-space:nowrap;cursor:pointer;user-select:none}
+th.sorted::after{content:" ▾"}th.sorted.asc::after{content:" ▴"}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--soft)}
+td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mono{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+.sub{color:var(--muted);font-size:12.5px}
+.date{white-space:nowrap;font-variant-numeric:tabular-nums}
+.date.soon{color:var(--warn);font-weight:600}
+.rem{max-width:260px;font-size:13px;color:var(--muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--neutral-bg);color:var(--muted)}
+.pill.Won{background:var(--won-bg);color:var(--won)}.pill.Lost{background:var(--lost-bg);color:var(--lost)}
+.pill.On{background:var(--proc-bg);color:var(--proc)}.pill.Retendered,.pill.Revised{background:var(--warn-bg);color:var(--warn)}
+.flag{display:inline-block;font-size:11px;font-weight:600;padding:1px 6px;border-radius:4px;margin:2px 4px 0 0}
+.flag.ok{background:var(--won-bg);color:var(--won)}.flag.due{background:var(--warn-bg);color:var(--warn)}.flag.late{background:var(--lost-bg);color:var(--lost)}
+.more{display:flex;justify-content:center;padding:12px}
+.pill.Partial{background:var(--purple-bg);color:var(--purple)}
+.btn.sm{padding:4px 9px;font-size:12.5px;margin:0 4px 4px 0;white-space:nowrap}
+.payhead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.payhead h2{font-family:var(--display);font-size:26px;margin:0}
+#payTiles{padding-block:10px 12px}
+.gauge[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.age.late{color:var(--lost);font-weight:600}
+.steps{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:10px}
+.step{display:flex;align-items:center;gap:8px;text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 9px;cursor:pointer;min-height:48px}
+.step:disabled{cursor:default;opacity:.7}
+.step .sn{flex:0 0 24px;height:24px;border-radius:999px;border:1.5px solid var(--muted);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--muted)}
+.step .sl{font-weight:600;font-size:13.5px;line-height:1.2;min-width:0}
+.step .sl small{display:block;font-weight:400;font-size:11.5px;color:var(--muted)}
+.step.on{background:var(--won-bg);border-color:transparent}
+.step.on .sn{background:var(--won);border-color:var(--won);color:var(--panel)}
+.step.cur{border-color:var(--brass)}
+.step.cur .sn{border-color:var(--brass);color:var(--brass)}
+.step.cur .sl small{color:var(--warn);font-weight:600}
+.pbar{height:5px;background:var(--soft);border-radius:3px;overflow:hidden;margin-top:6px}
+.pbar i{display:block;height:100%;background:var(--won)}
+.smini{display:flex;gap:2px;width:130px;max-width:100%;margin-bottom:3px}
+.smini i{flex:1;height:6px;border-radius:2px;background:var(--line)}
+.smini i.on{background:var(--won)}
+.psub{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.03em;margin:14px 0 6px}
+#psStep{grid-column:1/-1}
+.empty{padding:40px 16px;text-align:center;color:var(--muted)}
+
+/* calendar */
+.calhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.calhead h2{font-family:var(--display);font-size:26px;margin:0;min-width:190px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-left:auto}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--c)}
+.calgrid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px}
+.month{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:var(--line);gap:1px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.dow{background:var(--soft);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);padding:6px 8px}
+.day{background:var(--panel);min-height:108px;padding:4px 5px;display:flex;flex-direction:column;gap:3px;min-width:0}
+.day.out{background:var(--bg)}
+.day .dn{font-size:12px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.day.today .dn{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:0 7px;align-self:flex-start}
+.ev{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--c);background:var(--cb);color:var(--ink);border-radius:3px;padding:2px 5px;font-size:11.5px;line-height:1.25;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev.done{opacity:.55;text-decoration:line-through}
+.ev.sub{--c:var(--proc);--cb:var(--proc-bg)}.ev.del{--c:var(--brass);--cb:var(--warn-bg)}.ev.fu{--c:var(--purple);--cb:var(--purple-bg)}.ev.bg{--c:var(--won);--cb:var(--won-bg)}
+.agenda{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;align-self:start;min-width:0}
+.agenda h3{font-family:var(--display);font-size:18px;margin:4px 0 8px}
+.agenda .grp{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:12px 0 4px}
+.ag{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;padding:7px 0;border-top:1px solid var(--line);cursor:pointer;text-align:left;background:none;border-left:0;border-right:0;border-bottom:0;width:100%}
+.ag:hover{background:var(--soft)}
+.ag .d{font-family:var(--display);font-size:20px;line-height:1;font-weight:600;text-align:center}
+.ag .d small{display:block;font-size:11px;font-family:var(--body);color:var(--muted);font-weight:600;text-transform:uppercase}
+.ag .t{font-size:13px;min-width:0}
+.ag .t b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tag{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--c)}
+.tag.sub{--c:var(--proc)}.tag.del{--c:var(--brass)}.tag.fu{--c:var(--purple)}.tag.late{--c:var(--lost)}.tag.bg{--c:var(--won)}
+
+/* form */
+.formcard{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px;max-width:980px}
+.formcard h2{font-family:var(--display);font-size:26px;margin:0 0 4px}
+.formcard p.hint{margin:0 0 14px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld label{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:.03em}
+.fld label .req{color:var(--lost)}
+.fld input,.fld select,.fld textarea{padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);width:100%;min-width:0}
+.fld textarea{min-height:64px;resize:vertical}
+.fld.wide{grid-column:1/-1}
+.comps{display:flex;flex-direction:column;gap:6px}
+.comps:empty{display:none}
+.comp{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.2fr) minmax(0,1.8fr) auto;gap:6px;align-items:center}
+.comp input{padding:7px 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg);width:100%;min-width:0}
+.comp .c-bid{text-align:right;font-variant-numeric:tabular-nums}
+@media (max-width:560px){.comp{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}.comp .c-name{grid-column:1/-1}.comp .c-note{grid-column:1/3}}
+.seg{display:flex;flex-wrap:wrap;gap:4px}
+.seg button{border:1px solid var(--line);background:var(--bg);padding:6px 10px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;align-items:center}
+.note{font-size:13px;color:var(--muted)}
+.err{color:var(--lost);font-size:13px}
+
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(5,15,20,.35);z-index:20}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(720px,100%);background:var(--panel);z-index:21;box-shadow:var(--shadow);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
+.dhead{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+.dhead .t{flex:1;min-width:0}
+.dhead h2{font-family:var(--display);font-size:22px;margin:0;line-height:1.15}
+.dbody{overflow-y:auto;padding:14px 18px 24px;flex:1}
+.sect{margin-bottom:18px}
+.sect h3{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--brass);margin:0 0 8px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:4px}
+.dfoot{padding:10px 18px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.timeline{display:flex;flex-direction:column;gap:0}
+.re{display:grid;grid-template-columns:96px minmax(0,1fr) auto;gap:10px;padding:8px 0;border-top:1px solid var(--line);align-items:start}
+.re .when{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.re .txt{white-space:pre-wrap;word-break:break-word}
+.re .by{font-size:12px;color:var(--muted)}
+.kind{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:4px;background:var(--neutral-bg);color:var(--muted);margin-right:6px}
+.kind.Payment{background:var(--won-bg);color:var(--won)}.kind.Delivery{background:var(--warn-bg);color:var(--warn)}.kind.BGPG{background:var(--proc-bg);color:var(--proc)}.kind.Follow-up{background:var(--purple-bg);color:var(--purple)}.kind.Issue{background:var(--lost-bg);color:var(--lost)}
+.addrem{display:grid;grid-template-columns:150px minmax(0,1fr);gap:8px;margin-bottom:8px}
+.addrem textarea{grid-column:1/-1;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);min-height:64px;resize:vertical;width:100%}
+.addrem select{padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);min-width:0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:6px;z-index:40;font-weight:600;font-size:14px}
+.x{border:0;background:none;font-size:22px;cursor:pointer;color:var(--muted);line-height:1;padding:4px 8px}
+@media (max-width:900px){.calgrid{grid-template-columns:minmax(0,1fr)}.day{min-height:70px}.ev{font-size:10.5px}}
+@media (max-width:560px){.day .ev{padding:1px 3px}.month .dow{padding:4px;font-size:10px}.addrem{grid-template-columns:minmax(0,1fr)}.re{grid-template-columns:minmax(0,1fr)}.calhead h2{min-width:0}}
+.m-only{display:none}
+.agenda{scroll-margin-top:70px}
+@media (max-width:720px){
+  input,select,textarea{font-size:16px}
+  .brand small{display:none}
+  .bar .wrap{padding-block:8px}
+  .t-long{display:none}
+  td[data-c=pdel]{order:6;grid-column:1/-1;white-space:normal}
+  td[data-c=pdel]::before{content:"Delivered ";color:var(--muted);font-size:12px}
+  td[data-c=pdel] .sub{display:inline;margin-left:6px}
+  td[data-c=pinv]{order:7;grid-column:1/-1}
+  td[data-c=pinv]::before{content:"Invoice ";color:var(--muted);font-size:12px;font-family:var(--body)}
+  td[data-c=pinv] .sub{display:inline;margin-left:6px}
+  td[data-c=pval]{order:8;text-align:left}
+  td[data-c=pval]::before{content:"Value ৳ ";color:var(--muted);font-size:12px}
+  td[data-c=pout]{order:9;text-align:right;font-weight:600}
+  td[data-c=pout]::before{content:"Due ৳ ";color:var(--muted);font-size:12px;font-weight:400}
+  td[data-c=prec]{order:10;grid-column:1/-1;text-align:left}
+  td[data-c=pstep]{order:10;grid-column:1/-1;margin-top:4px}
+  td[data-c=pstep] .smini{width:100%}
+  td[data-c=prec]::before{content:"Received ৳ ";color:var(--muted);font-size:12px}
+  td[data-c=pact]{order:11;grid-column:1/-1;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+  td[data-c=pact] .btn{flex:1;margin:0;font-size:14px}
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;margin:0;z-index:15;background:var(--panel);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:6px max(10px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));box-shadow:0 -4px 16px rgba(10,30,40,.08)}
+  .tab{min-height:44px;padding:8px 4px;border-radius:8px;text-align:center;white-space:nowrap}
+  main{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(84px + env(safe-area-inset-bottom,0px));max-width:calc(100% - 32px)}
+  .btn{min-height:42px}
+  .gauges{display:flex;overflow-x:auto;gap:8px;scroll-snap-type:x proximity;padding-block:8px 4px;scrollbar-width:none}
+  .gauge{flex:0 0 auto;min-width:148px;scroll-snap-align:start;padding:8px 12px}
+  .gauge .v{font-size:24px}
+  .toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+  .search{grid-column:1/-1;padding:10px 12px}
+  select.f{width:100%;padding:10px}
+  .m-only{display:block}
+  #exportBtn{grid-column:1/-1}
+  .chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+  .chip{flex:0 0 auto;padding:8px 14px}
+  .tablebox{background:none;border:0;overflow:visible}
+  table{min-width:0}
+  thead{display:none}
+  table,tbody,td{display:block}
+  tbody tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+  tbody tr:active{background:var(--soft)}
+  td{border:0;padding:0;min-width:0}
+  td:empty{display:none}
+  td[data-c=sn]{order:1;text-align:left;font-size:12px;color:var(--muted)}
+  td[data-c=sn]::before{content:"S/N "}
+  td[data-c=res]{order:2;text-align:right}
+  td[data-c=cust]{order:3;grid-column:1/-1}
+  td[data-c=item]{order:4;grid-column:1/-1;font-weight:500}
+  td[data-c=tno]{order:5;grid-column:1/-1}
+  td[data-c=tno] .sub{display:inline;margin-left:6px}
+  td[data-c=date]{order:6;white-space:normal}
+  td[data-c=date]::before{content:"Submission ";color:var(--muted);font-size:12px;font-weight:400}
+  td[data-c=date] .sub{display:inline;margin-left:4px}
+  td[data-c=bid]{order:7;text-align:right;font-weight:600}
+  td[data-c=bid]::before{content:"৳ ";color:var(--muted);font-weight:400}
+  td[data-c=prog]{order:8;grid-column:1/-1;margin-top:4px}
+  td[data-c=rem]{order:9;grid-column:1/-1;border-top:1px solid var(--line);padding-top:6px;margin-top:4px}
+  .rem{max-width:none}
+  .calhead{gap:6px}
+  .calhead h2{font-size:22px;min-width:0;flex:1;text-align:center}
+  .legend{margin-left:0;width:100%;gap:10px;font-size:12px;order:5}
+  .drawer{box-shadow:none}
+  .dhead{padding:12px 16px}
+  .dbody{padding:12px 16px 20px}
+  .dfoot{padding:10px 16px}
+  .dfoot .btn{flex:1}
+  .dfoot .note{width:100%;order:-1}
+  .x{font-size:28px;padding:6px 10px;min-width:44px;min-height:44px}
+  .seg button{padding:9px 12px}
+  .comp input{padding:9px}
+}
+@media (max-width:560px){
+  .day{min-height:56px;padding:3px;gap:2px;cursor:pointer}
+  .day .ev{font-size:0;height:5px;padding:0;border-left:0;border-radius:2px;background:var(--c);pointer-events:none}
+  .day .ev[data-day]{--c:var(--muted)}
+  .day .dn{font-size:12px}
+  .day.today .dn{padding:0 5px}
+}
+@media (prefers-reduced-motion:no-preference){.drawer{animation:slide .18s ease-out}@keyframes slide{from{transform:translateX(30px);opacity:.6}}}
+</style>
+
+<header class="bar"><div class="wrap">
+  <div class="brand">Tender Desk <small>Tender &amp; contract status</small></div>
+  <nav class="tabs" role="tablist">
+    <button class="tab" id="tab-list" role="tab" data-view="list" aria-selected="true">Tenders</button>
+    <button class="tab" id="tab-cal" role="tab" data-view="cal" aria-selected="false">Calendar</button>
+    <button class="tab" id="tab-pay" role="tab" data-view="pay" aria-selected="false">Payments</button>
+    <button class="tab new" id="tab-new" role="tab" data-view="new" aria-selected="false">+ New<span class="t-long"> tender</span></button>
+  </nav>
+</div></header>
+
+<div class="wrap">
+  <div class="status-line" id="status">Connecting to the tender register…</div>
+  <section class="gauges" id="gauges" aria-label="Summary"></section>
+</div>
+
+<main class="wrap">
+  <section id="view-list">
+    <div class="toolbar">
+      <input class="search" id="q" type="search" placeholder="Search tender no., item, vessel, customer, PO, invoice, remarks…">
+      <select class="f" id="fCust" aria-label="Customer"><option value="">All customers</option></select>
+      <select class="f" id="fFy" aria-label="Financial year"><option value="">All FY</option></select>
+      <select class="f" id="fFlag" aria-label="Follow-up filter">
+        <option value="">Any stage</option>
+        <option value="subUpcoming">Submission upcoming</option>
+        <option value="delPending">Delivery pending</option>
+        <option value="payPending">Payment pending</option>
+        <option value="bgpgDue">BG/PG settlement due</option>
+      </select>
+      <select class="f m-only" id="fSort" aria-label="Sort"><option value="sn:desc">Newest first</option><option value="sn:asc">Oldest first</option><option value="submissionDate:desc">Submission date, latest</option><option value="submissionDate:asc">Submission date, earliest</option><option value="bidAmount:desc">Bid amount, highest</option><option value="customer:asc">Customer A–Z</option></select>
+      <button class="btn" id="exportBtn" hidden>Export CSV</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="tablebox"><table>
+      <thead><tr>
+        <th data-sort="sn">S/N</th><th data-sort="customer">Customer</th><th data-sort="tenderNo">Tender no.</th><th data-sort="item">Item / vessel</th>
+        <th data-sort="submissionDate">Submission</th><th data-sort="bidAmount" style="text-align:right">BTL bid (৳)</th><th data-sort="result">Result</th>
+        <th>Progress</th><th>Latest remark</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="emptyList" hidden></div></div>
+    <div class="more"><button class="btn" id="moreBtn" hidden>Show more</button></div>
+  </section>
+
+  <section id="view-cal" hidden>
+    <div class="calhead">
+      <button class="btn" id="prevM" aria-label="Previous month">‹</button>
+      <h2 id="mTitle"></h2>
+      <button class="btn" id="nextM" aria-label="Next month">›</button>
+      <button class="btn ghost" id="todayM">Today</button>
+      <div class="legend">
+        <span style="--c:var(--proc)">Submission</span><span style="--c:var(--brass)">Delivery commitment</span><span style="--c:var(--won)">BG/PG date</span><span style="--c:var(--purple)">Follow-up</span>
+      </div>
+    </div>
+    <div class="calgrid">
+      <div class="month" id="month"></div>
+      <aside class="agenda" id="agenda"></aside>
+    </div>
+  </section>
+
+  <section id="view-pay" hidden>
+    <div class="payhead"><h2>Payment tracker</h2><span class="note">Delivered tenders, from billing to collection. Tap a stage to filter.</span></div>
+    <div class="gauges" id="payTiles"></div>
+    <div class="toolbar">
+      <input class="search" id="pq" type="search" placeholder="Search customer, item, tender no., invoice…">
+      <select class="f" id="pCust" aria-label="Customer"><option value="">All customers</option></select>
+      <select class="f" id="pStep" aria-label="Navy payment step"><option value="">Any Navy step</option></select>
+    </div>
+    <div class="chips" id="pchips"></div>
+    <div class="tablebox"><table>
+      <thead><tr><th>S/N</th><th>Customer</th><th>Item / tender no.</th><th>Delivered</th><th>Invoice</th><th style="text-align:right">Value (৳)</th><th style="text-align:right">Received (৳)</th><th style="text-align:right">Outstanding (৳)</th><th>Stage</th><th>Navy steps</th><th>Update</th></tr></thead>
+      <tbody id="prows"></tbody>
+    </table>
+    <div class="empty" id="emptyPay" hidden></div></div>
+    <div class="more"><button class="btn" id="pMore" hidden>Show more</button></div>
+  </section>
+
+  <section id="view-new" hidden>
+    <form class="formcard" id="newForm" autocomplete="off">
+      <h2>New tender</h2>
+      <p class="hint">Only customer, tender no. and submission date are needed now. Add NOA, PO, delivery and payment later from the tender file.</p>
+      <div class="grid">
+        <div class="fld"><label for="n-customer">Customer <span class="req">*</span></label><input id="n-customer" list="dl-customer" required></div>
+        <div class="fld"><label for="n-base">Base / division</label><input id="n-base" list="dl-base"></div>
+        <div class="fld"><label for="n-tenderNo">Tender no. <span class="req">*</span></label><input id="n-tenderNo" required class="mono"></div>
+        <div class="fld"><label>Tender type</label><div class="seg" id="n-type"><button type="button" aria-pressed="true">OTM</button><button type="button" aria-pressed="false">LTM</button><button type="button" aria-pressed="false">DPM</button><button type="button" aria-pressed="false">RFQ</button></div></div>
+        <div class="fld"><label for="n-issueDate">Issue date</label><input id="n-issueDate" type="date"></div>
+        <div class="fld"><label for="n-submissionDate">Submission date <span class="req">*</span></label><input id="n-submissionDate" type="date" required></div>
+        <div class="fld"><label for="n-fy">Financial year</label><input id="n-fy" list="dl-fy" placeholder="Filled from dates"></div>
+        <div class="fld"><label for="n-bidAmount">BTL bid amount (৳)</label><input id="n-bidAmount" inputmode="decimal" placeholder="e.g. 1,250,000"></div>
+        <div class="fld wide"><label for="n-item">Item category (engine model – item – vessel)</label><input id="n-item" list="dl-item" placeholder="e.g. C18 Pump Items (Bijoy)"></div>
+        <div class="fld"><label for="n-engineModel">Engine model</label><input id="n-engineModel" list="dl-engine"></div>
+        <div class="fld"><label for="n-quotationNo">Quotation #</label><input id="n-quotationNo"></div>
+        <div class="fld wide"><label>Competitors (optional, add as many as you know)</label><div class="comps" id="n-comps"></div><div><button type="button" class="btn" id="n-compAdd">+ Add competitor</button></div></div>
+        <div class="fld wide"><label for="n-remark">First remark (optional)</label><textarea id="n-remark" placeholder="e.g. Tender schedule bought, quote requested from supplier"></textarea></div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" type="submit" id="saveNew">Save tender</button>
+        <button class="btn" type="button" id="saveNewAnother">Save &amp; add another</button>
+        <span class="note" id="newNote"></span>
+      </div>
+    </form>
+  </section>
+</main>
+
+<datalist id="dl-customer"></datalist><datalist id="dl-base"></datalist><datalist id="dl-fy"></datalist><datalist id="dl-item"></datalist><datalist id="dl-engine"></datalist><datalist id="dl-competitor"></datalist>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-label="Tender file"></aside>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad = n => String(n).padStart(2,"0");
+const iso = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const TODAY = iso(new Date());
+const parse = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+const daysFrom = s => Math.round((parse(s) - parse(TODAY)) / 86400000);
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmtD = s => { if (!s) return ""; const d = parse(s); return pad(d.getDate())+" "+MON[d.getMonth()]+" "+d.getFullYear(); };
+const fmtN = n => (n == null || n === "" || isNaN(n)) ? "" : Number(n).toLocaleString("en-IN", {maximumFractionDigits: 2});
+const fmtCr = n => n >= 1e7 ? "৳" + (n/1e7).toFixed(2) + " cr" : n >= 1e5 ? "৳" + (n/1e5).toFixed(1) + " lakh" : "৳" + fmtN(n);
+const fyOf = s => { if (!s) return ""; const d = parse(s); const y = d.getFullYear() % 100; const st = d.getMonth() >= 6 ? y : y - 1; return pad(st) + "-" + pad((st+1)%100); };
+const toast = msg => { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2200); };
+
+const RESULTS = ["On Process","Won","Lost","Retendered","Revised","Closed"];
+const KINDS = ["General","Payment","Delivery","BG/PG","Follow-up","Issue"];
+const FIELDS = [
+  ["Tender", [["customer","Customer","text","dl-customer"],["base","Base / division","text","dl-base"],["fy","Financial year","text","dl-fy"],["tenderNo","Tender no.","text"],["type","Tender type","text"],["issueDate","Issue date","date"],["submissionDate","Submission date","date"],["submitted","Submitted?","sel",["","YES","NO"]],["item","Item category (engine – item – vessel)","text","dl-item",true],["bidAmount","BTL bid amount (৳)","num"],["engineModel","Engine model","text","dl-engine"],["engineSerial","Engine serial","text"],["quotationNo","Quotation #","text"]]],
+  ["Award & guarantees", [["noaNo","NOA number","text"],["noaDate","NOA date","date"],["bgDate","BG submission date","date"],["bgStatus","BG status","text"],["bgNo","BG no.","text"],["pgDate","PG submission date","date"],["pgStatus","PG status","text"],["pgNo","PG no.","text"],["bgpgSettlement","BG/PG settlement","sel",["","Due","Settled","Not required"]]]],
+  ["Order & delivery", [["poNo","PO number","text"],["poDate","PO date","date"],["coNo","BCAT CO #","text"],["coDate","BCAT CO date","date"],["orderStatus","Order status","sel",["","Order mail given","Partially allocated","Fully Allocated","Shipped","Received at warehouse"]],["deliveryCommitment","Delivery commitment","date"],["deliveryStatus","Delivery status","sel",["","Partially delivered","Delivered"]],["deliveryDate","Delivery date","date"]]],
+  ["Billing & payment", [["invoiceNo","Invoice #","text"],["billDate","Bill submitted on","date"],["paymentStatus","Payment status","sel",["","Bill Submitted","Partially Rcvd","Rcvd"]],["paidAmount","Amount received (৳)","num"],["paidDate","Payment received on","date"]]],
+];
+const ALLF = FIELDS.flatMap(g => g[1]);
+const comps = t => Array.isArray(t.competitors) ? t.competitors : (t.competitor ? [{name: t.competitor, bid: t.competitorBid ?? null, note: t.competitorBidNote || ""}] : []);
+const rankOf = (t, list) => { const ours = Number(t.bidAmount); const bids = list.map(c => Number(c.bid)).filter(b => b > 0); if (!(ours > 0) || !bids.length) return ""; return "L" + (1 + bids.filter(b => b < ours).length) + " of " + (bids.length + 1); };
+const compRowHtml = (c = {}) => `<div class="comp"><input class="c-name" list="dl-competitor" placeholder="Competitor name" value="${esc(c.name)}" aria-label="Competitor name"><input class="c-bid" inputmode="decimal" placeholder="Bid (৳)" value="${esc(c.bid == null ? "" : fmtN(c.bid))}" aria-label="Competitor bid"><input class="c-note" placeholder="Note, e.g. non-responsive" value="${esc(c.note)}" aria-label="Competitor note"><button type="button" class="btn ghost c-del" aria-label="Remove competitor">×</button></div>`;
+const readComps = box => [...box.querySelectorAll(".comp")].map(r => { const b = r.querySelector(".c-bid").value.replace(/[,\s৳]/g, ""); return {name: r.querySelector(".c-name").value.trim(), bid: b && !isNaN(b) ? Number(b) : null, note: r.querySelector(".c-note").value.trim()}; }).filter(c => c.name || c.bid != null || c.note);
+function wireComps(box, onChange) { box.addEventListener("click", e => { if (e.target.closest(".c-del")) { e.target.closest(".comp").remove(); onChange && onChange(); } }); box.addEventListener("input", () => onChange && onChange()); }
+const compLegacy = list => { const bids = list.map(c => c.bid).filter(b => b > 0); return {competitor: list.map(c => c.name).filter(Boolean).join(", "), competitorBid: bids.length ? Math.min(...bids) : null}; };
+
+let db = null, user = null, myId = null, canWrite = true, dl = null;
+let tenders = [];            // [{id, ...data}]
+let byId = new Map();
+let names = {};
+let state = { view: "list", status: "", q: "", cust: "", fy: "", flag: "", sort: "sn", dir: "desc", shown: 60, month: null, open: null };
+try { const s = JSON.parse(localStorage.getItem("td-ui") || "{}"); Object.assign(state, {view: s.view || "list", sort: s.sort || "sn", dir: s.dir || "desc"}); } catch (e) {}
+const saveUi = () => { try { localStorage.setItem("td-ui", JSON.stringify({view: state.view, sort: state.sort, dir: state.dir})); } catch (e) {} };
+
+/* ---------- derived ---------- */
+const delivered = t => /deliver/i.test(t.deliveryStatus || "") && !/partial/i.test(t.deliveryStatus || "");
+const paid = t => /^rcvd$/i.test(t.paymentStatus || "") || /collected full/i.test(lastRemark(t)?.text || "");
+const isWon = t => t.result === "Won";
+const lastRemark = t => (t.remarks || []).slice().sort((a,b) => (a.at||"") < (b.at||"") ? 1 : -1)[0];
+const flags = t => ({
+  subUpcoming: !!t.submissionDate && daysFrom(t.submissionDate) >= 0 && t.submitted !== "YES",
+  delPending: isWon(t) && !delivered(t),
+  payPending: delivered(t) && !paid(t),
+  bgpgDue: /due/i.test(t.bgpgSettlement || ""),
+});
+
+/* ---------- Navy payment steps ---------- */
+const STEPS = ["CR Section","CINS","Vessel","CINS","BILL","DTS","Budget Section","SFC/AFC","Cheque"];
+const isNavy = t => /navy/i.test(t.customer || "");
+const hasSteps = t => isNavy(t) && /deliver/i.test(t.deliveryStatus || "");
+const stepDone = (t, i) => !!(t.paySteps && t.paySteps["s" + i]);
+const stepsDone = t => STEPS.filter((_, i) => stepDone(t, i)).length;
+const stepNext = t => STEPS.findIndex((_, i) => !stepDone(t, i));
+const stepTag = r => r.step != null && STEPS[r.step] ? `<span class="kind BGPG">${r.step + 1}. ${esc(STEPS[r.step])}</span>` : "";
+const whoOf = r => r.uid ? (names[r.uid] || "Team member") : (r.by || "");
+function stepMini(t) {
+  const nx = stepNext(t);
+  const issue = (t.remarks || []).filter(r => r.step != null).sort((a, b) => (a.at || "") < (b.at || "") ? 1 : -1)[0];
+  return `<div class="smini">${STEPS.map((_, i) => `<i class="${stepDone(t, i) ? "on" : ""}"></i>`).join("")}</div><div class="sub">${stepsDone(t)}/${STEPS.length}${nx >= 0 ? " · waiting at " + esc(STEPS[nx]) : " · all steps done"}</div>${issue ? `<div class="rem">${esc(issue.text)}</div>` : ""}`;
+}
+function renderPaySect(id) {
+  const box = $("#paySect"), t = byId.get(id); if (!box || !t) return;
+  const n = stepsDone(t), nx = stepNext(t);
+  const prem = (t.remarks || []).filter(r => r.step != null || r.kind === "Payment" || r.kind === "Issue").sort((a, b) => (a.at || "") < (b.at || "") ? 1 : -1);
+  box.innerHTML = `<h3>Navy payment steps</h3>
+    <div class="note">${n} of ${STEPS.length} completed${nx >= 0 ? ` · waiting at <b>${nx + 1}. ${esc(STEPS[nx])}</b>` : " · all steps completed"}. Tap a step to tick or untick it.</div>
+    <div class="pbar"><i style="width:${n / STEPS.length * 100}%"></i></div>
+    <div class="steps">${STEPS.map((s, i) => { const d = t.paySteps && t.paySteps["s" + i]; return `<button type="button" class="step${d ? " on" : i === nx ? " cur" : ""}" data-step="${i}" aria-pressed="${!!d}"><span class="sn">${d ? "✓" : i + 1}</span><span class="sl">${esc(s)}<small>${d ? "done " + fmtD(d.at) : i === nx ? "waiting here" : ""}</small></span></button>`; }).join("")}</div>
+    <div class="psub">Payment remarks and issues</div>
+    <div class="addrem"><select id="psStep" aria-label="Step this remark is about"><option value="">Not about a specific step</option>${STEPS.map((s, i) => `<option value="${i}"${i === nx ? " selected" : ""}>About step ${i + 1}. ${esc(s)}</option>`).join("")}</select>
+      <textarea id="psText" placeholder="e.g. File returned from DTS, vessel receipt copy missing"></textarea></div>
+    <div class="actions" style="margin-top:0;margin-bottom:6px"><button type="button" class="btn primary" id="psAdd">Add payment remark</button></div>
+    <div class="timeline">${prem.map(r => `<div class="re"><div class="when">${fmtD(r.at)}</div><div>${stepTag(r)}<span class="txt">${esc(r.text)}</span> <div class="by">${esc(whoOf(r))}</div></div><div></div></div>`).join("") || '<p class="sub">No payment remarks yet.</p>'}</div>`;
+  box.querySelectorAll(".step").forEach(b => b.onclick = async () => {
+    const cur = byId.get(id), i = +b.dataset.step, was = stepDone(cur, i);
+    b.disabled = true;
+    const ok = await write(id, {paySteps: {["s" + i]: was ? null : {at: TODAY, ...(myId ? {uid: myId} : {})}}}, was ? STEPS[i] + " unticked" : STEPS[i] + " completed");
+    if (!ok) b.disabled = false;
+  });
+  $("#psAdd").onclick = async () => {
+    const ta = $("#psText"), text = ta.value.trim(); if (!text) { ta.focus(); return; }
+    const sv = $("#psStep").value, cur = byId.get(id);
+    const r = {id: "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: TODAY, kind: "Payment", text, ...(sv !== "" ? {step: +sv} : {}), ...(myId ? {uid: myId} : {})};
+    ta.value = "";
+    const ok = await write(id, {remarks: [...(cur.remarks || []), r]}, "Payment remark added");
+    if (!ok && $("#psText")) $("#psText").value = text;
+  };
+  if (!canWrite) box.querySelectorAll("button,select,textarea").forEach(el => el.disabled = true);
+}
+
+/* ---------- payments ---------- */
+const PSTAGES = ["To bill","Bill submitted","Partial","Received"];
+const PSUB = {"To bill":"delivered, bill not submitted","Bill submitted":"waiting for payment","Partial":"part payment received","Received":"collected in full"};
+const PCLS = {"To bill":"Retendered","Bill submitted":"On","Partial":"Partial","Received":"Won"};
+const payStage = t => paid(t) ? "Received" : /partial/i.test(t.paymentStatus || "") ? "Partial" : (/bill/i.test(t.paymentStatus || "") || t.billDate || t.invoiceNo || (t.remarks || []).some(r => /bill submitted/i.test(r.text || ""))) ? "Bill submitted" : "To bill";
+const receivedAmt = t => (t.paidAmount != null && t.paidAmount !== "") ? (Number(t.paidAmount) || 0) : (paid(t) ? Number(t.bidAmount) || 0 : 0);
+let pstate = {stage: "open", q: "", cust: "", step: "", shown: 60};
+$("#pStep").innerHTML = `<option value="">Any Navy step</option>` + STEPS.map((s, i) => `<option value="${i}">Waiting at ${i + 1}. ${esc(s)}</option>`).join("");
+$("#pStep").onchange = e => { pstate.step = e.target.value; pstate.shown = 60; renderPay(); };
+function renderPay() {
+  const all = tenders.filter(delivered).map(t => { const st = payStage(t), val = Number(t.bidAmount) || 0, rec = receivedAmt(t); return {t, st, val, rec, out: st === "Received" ? 0 : Math.max(0, val - rec)}; });
+  $("#payTiles").innerHTML = PSTAGES.map(st => { const a = all.filter(x => x.st === st); const amt = a.reduce((s, x) => s + (st === "Received" ? x.rec : x.out), 0);
+    return `<button class="gauge${st !== "Received" && a.length ? " alert" : ""}" data-st="${st}" aria-pressed="${pstate.stage === st}"><div class="k">${st}</div><div class="v">${a.length}</div><div class="s">${amt ? fmtCr(amt) + (st === "Received" ? " collected" : " outstanding") : PSUB[st]}</div></button>`; }).join("");
+  $("#payTiles").querySelectorAll(".gauge").forEach(b => b.onclick = () => { pstate.stage = pstate.stage === b.dataset.st ? "open" : b.dataset.st; pstate.shown = 60; renderPay(); });
+  const nOpen = all.filter(x => x.st !== "Received").length;
+  const chips = [["open", "Open", nOpen], ...PSTAGES.map(s => [s, s, all.filter(x => x.st === s).length]), ["all", "All delivered", all.length]];
+  $("#pchips").innerHTML = chips.map(c => `<button class="chip" data-s="${c[0]}" aria-pressed="${pstate.stage === c[0]}">${c[1]}<span class="n">${c[2]}</span></button>`).join("");
+  $("#pchips").querySelectorAll(".chip").forEach(b => b.onclick = () => { pstate.stage = b.dataset.s; pstate.shown = 60; renderPay(); });
+  const custs = [...new Set(all.map(x => x.t.customer).filter(Boolean))].sort();
+  $("#pCust").innerHTML = `<option value="">All customers</option>` + custs.map(c => `<option${c === pstate.cust ? " selected" : ""}>${esc(c)}</option>`).join("");
+  const q = pstate.q.trim().toLowerCase();
+  const arr = all.filter(x => {
+    if (pstate.stage === "open" ? x.st === "Received" : (pstate.stage !== "all" && x.st !== pstate.stage)) return false;
+    if (pstate.cust && x.t.customer !== pstate.cust) return false;
+    if (pstate.step !== "" && !(hasSteps(x.t) && x.st !== "Received" && stepNext(x.t) === +pstate.step)) return false;
+    if (q) { const hay = [x.t.customer, x.t.base, x.t.item, x.t.tenderNo, x.t.invoiceNo, x.t.poNo, String(x.t.sn || "")].join(" ").toLowerCase(); if (!q.split(/\s+/).every(w => hay.includes(w))) return false; }
+    return true;
+  }).sort((a, b) => (PSTAGES.indexOf(a.st) - PSTAGES.indexOf(b.st)) || ((a.t.deliveryDate || "9") < (b.t.deliveryDate || "9") ? -1 : (a.t.deliveryDate || "9") > (b.t.deliveryDate || "9") ? 1 : 0));
+  $("#prows").innerHTML = arr.slice(0, pstate.shown).map(({t, st, val, rec, out}) => {
+    const age = t.deliveryDate ? -daysFrom(t.deliveryDate) : null;
+    const acts = !canWrite || st === "Received" ? "" : (st === "To bill" ? `<button class="btn sm" data-act="bill">Bill submitted</button>` : "") + `<button class="btn sm" data-act="full">Paid in full</button><button class="btn sm" data-act="part">Part payment…</button>`;
+    return `<tr data-id="${t.id}">
+      <td class="num" data-c="sn">${esc(t.sn ?? "")}</td>
+      <td data-c="cust"><b>${esc(t.customer)}</b><div class="sub">${esc(t.base)}</div></td>
+      <td data-c="item">${esc(t.item)}<div class="mono sub">${esc(t.tenderNo)}</div></td>
+      <td data-c="pdel" class="date">${t.deliveryDate ? fmtD(t.deliveryDate) : "date not recorded"}${age != null && st !== "Received" ? `<div class="sub age${age > 90 ? " late" : ""}">${age} days ago</div>` : ""}</td>
+      <td data-c="pinv" class="mono">${esc(t.invoiceNo)}${t.billDate ? `<div class="sub">billed ${fmtD(t.billDate)}</div>` : ""}</td>
+      <td class="num" data-c="pval">${fmtN(t.bidAmount)}</td>
+      <td class="num" data-c="prec">${rec ? fmtN(rec) : ""}${t.paidDate ? `<div class="sub">${fmtD(t.paidDate)}</div>` : ""}</td>
+      <td class="num" data-c="pout">${out ? fmtN(out) : ""}</td>
+      <td data-c="res"><span class="pill ${PCLS[st]}">${st}</span></td>
+      <td data-c="pstep">${hasSteps(t) && (st !== "Received" || stepsDone(t)) ? stepMini(t) : ""}</td>
+      <td data-c="pact">${acts}</td></tr>`;
+  }).join("");
+  $("#prows").querySelectorAll("tr").forEach(tr => tr.onclick = e => { const b = e.target.closest("[data-act]"); if (b) payAct(tr.dataset.id, b.dataset.act, b); else openTender(tr.dataset.id, "pay"); });
+  const em = $("#emptyPay"); em.hidden = arr.length > 0;
+  if (!arr.length) em.textContent = !loaded ? "Loading tenders…" : all.length ? (pstate.stage === "open" && !q && !pstate.cust ? "Nothing outstanding. Every delivered tender is collected." : "No delivered tenders match these filters.") : "No delivered tenders yet. Mark a tender Delivered in its record and it will appear here.";
+  const mb = $("#pMore"); mb.hidden = arr.length <= pstate.shown; mb.textContent = `Show more (${arr.length - pstate.shown} left)`;
+}
+async function payAct(id, act, btn) {
+  const t = byId.get(id); if (!t) return;
+  const rem = text => [...(t.remarks || []), {id: "m" + Date.now().toString(36), at: TODAY, kind: "Payment", text, ...(myId ? {uid: myId} : {})}];
+  if (act === "part") { openTender(id); setTimeout(() => { const el = $("#d-paidAmount"); if (el) { el.scrollIntoView({block: "center"}); el.focus(); } }, 60); return; }
+  if (btn) btn.disabled = true;
+  if (act === "bill") await write(id, {paymentStatus: "Bill Submitted", billDate: t.billDate || TODAY, remarks: rem("Bill submitted")}, "Marked bill submitted");
+  else if (act === "full") await write(id, {paymentStatus: "Rcvd", paidDate: TODAY, paidAmount: Number(t.bidAmount) || null, remarks: rem("Full payment received")}, "Payment recorded");
+}
+let pqT; $("#pq").oninput = e => { clearTimeout(pqT); pqT = setTimeout(() => { pstate.q = e.target.value; pstate.shown = 60; renderPay(); }, 120); };
+$("#pCust").onchange = e => { pstate.cust = e.target.value; pstate.shown = 60; renderPay(); };
+$("#pMore").onclick = () => { pstate.shown += 100; renderPay(); };
+
+/* ---------- events for calendar ---------- */
+function events() {
+  const ev = [];
+  for (const t of tenders) {
+    const name = (t.customer || "") + " · " + (t.item || t.tenderNo || "");
+    if (t.submissionDate) ev.push({d: t.submissionDate, k: "sub", t, label: name, done: t.submitted === "YES" && daysFrom(t.submissionDate) < 0});
+    if (t.deliveryCommitment) ev.push({d: t.deliveryCommitment, k: "del", t, label: name, done: delivered(t)});
+    if (t.bgDate) ev.push({d: t.bgDate, k: "bg", t, label: "BG · " + name, done: daysFrom(t.bgDate) < 0});
+    if (t.pgDate) ev.push({d: t.pgDate, k: "bg", t, label: "PG · " + name, done: daysFrom(t.pgDate) < 0});
+    for (const r of t.remarks || []) if (r.followUp) ev.push({d: r.followUp, k: "fu", t, label: r.text, done: !!r.doneAt});
+  }
+  return ev;
+}
+
+/* ---------- gauges ---------- */
+function renderGauges() {
+  const ev = events();
+  const sub14 = ev.filter(e => e.k === "sub" && !e.done && daysFrom(e.d) >= 0 && daysFrom(e.d) <= 14).length;
+  const del30 = ev.filter(e => e.k === "del" && !e.done && daysFrom(e.d) <= 30).length;
+  const lateDel = ev.filter(e => e.k === "del" && !e.done && daysFrom(e.d) < 0).length;
+  const onp = tenders.filter(t => t.result === "On Process").length;
+  const pay = tenders.filter(t => flags(t).payPending);
+  const fy = fyOf(TODAY);
+  const wonFy = tenders.filter(t => isWon(t) && t.fy === fy);
+  const wonVal = wonFy.reduce((s,t) => s + (Number(t.bidAmount) || 0), 0);
+  const g = [
+    ["On process", onp, "tenders awaiting result", () => setStatus("On Process")],
+    ["Submissions ≤ 14 days", sub14, "not yet marked submitted", () => setFlag("subUpcoming"), sub14 > 0],
+    ["Deliveries ≤ 30 days", del30, lateDel ? lateDel + " already past commitment" : "by committed date", () => setFlag("delPending"), lateDel > 0],
+    ["Payment pending", pay.length, "delivered, not collected", () => { pstate.stage = "open"; go("pay"); }, pay.length > 0],
+    ["Won in FY " + fy, wonFy.length, wonVal ? fmtCr(wonVal) + " bid value" : "no wins logged yet", () => { state.fy = fy; $("#fFy").value = fy; setStatus("Won"); }],
+  ];
+  $("#gauges").innerHTML = g.map((x,i) => `<button class="gauge${x[4] ? " alert" : ""}" data-g="${i}"><div class="k">${esc(x[0])}</div><div class="v">${x[1]}</div><div class="s">${esc(x[2])}</div></button>`).join("");
+  $("#gauges").querySelectorAll(".gauge").forEach(b => b.onclick = () => g[b.dataset.g][3]());
+}
+function setStatus(s) { state.status = s; state.flag = ""; $("#fFlag").value = ""; go("list"); }
+function setFlag(f) { state.flag = f; state.status = ""; $("#fFlag").value = f; go("list"); }
+
+/* ---------- list ---------- */
+function filtered() {
+  const q = state.q.trim().toLowerCase();
+  let arr = tenders.filter(t => {
+    if (state.status && (t.result || "—") !== state.status) return false;
+    if (state.cust && t.customer !== state.cust) return false;
+    if (state.fy && t.fy !== state.fy) return false;
+    if (state.flag && !flags(t)[state.flag]) return false;
+    if (q) {
+      const hay = [t.customer,t.base,t.tenderNo,t.item,...comps(t).map(c => c.name),t.noaNo,t.poNo,t.coNo,t.invoiceNo,t.bgNo,t.engineModel,t.quotationNo,String(t.sn||""),...(t.remarks||[]).map(r => r.text)].join(" ").toLowerCase();
+      if (!q.split(/\s+/).every(w => hay.includes(w))) return false;
+    }
+    return true;
+  });
+  const k = state.sort, dir = state.dir === "asc" ? 1 : -1;
+  arr.sort((a,b) => {
+    let x = a[k], y = b[k];
+    if (k === "sn" || k === "bidAmount") { x = Number(x) || 0; y = Number(y) || 0; return (x - y) * dir; }
+    x = String(x || ""); y = String(y || "");
+    if (!x && y) return 1; if (x && !y) return -1;
+    return x.localeCompare(y) * dir;
+  });
+  return arr;
+}
+function progress(t) {
+  const out = [];
+  if (t.noaNo || t.noaDate) out.push('<span class="flag ok">NOA</span>');
+  if (t.poNo) out.push('<span class="flag ok">PO</span>');
+  if (t.bgNo || /upload/i.test(t.bgStatus||"")) out.push('<span class="flag ok">BG</span>');
+  if (delivered(t)) out.push('<span class="flag ok">Delivered</span>');
+  else if (t.deliveryCommitment) { const n = daysFrom(t.deliveryCommitment); out.push(`<span class="flag ${n < 0 ? "late" : "due"}">Deliver ${n < 0 ? Math.abs(n) + "d late" : "in " + n + "d"}</span>`); }
+  else if (isWon(t)) out.push('<span class="flag due">Delivery pending</span>');
+  if (paid(t)) out.push('<span class="flag ok">Paid</span>');
+  else if (/bill/i.test(t.paymentStatus||"") || flags(t).payPending) out.push('<span class="flag due">Payment due</span>');
+  if (/due/i.test(t.bgpgSettlement||"")) out.push('<span class="flag due">BG/PG settle</span>');
+  return out.join("");
+}
+function pillCls(r) { return r === "On Process" ? "On" : (r || ""); }
+function renderList() {
+  // chips
+  const counts = {};
+  tenders.forEach(t => { const r = t.result || "—"; counts[r] = (counts[r] || 0) + 1; });
+  const order = [...RESULTS.filter(r => counts[r]), ...Object.keys(counts).filter(r => !RESULTS.includes(r))];
+  $("#chips").innerHTML = `<button class="chip" data-s="" aria-pressed="${!state.status}">All<span class="n">${tenders.length}</span></button>` +
+    order.map(r => `<button class="chip" data-s="${esc(r)}" aria-pressed="${state.status === r}">${esc(r === "—" ? "No result" : r)}<span class="n">${counts[r]}</span></button>`).join("");
+  $("#chips").querySelectorAll(".chip").forEach(b => b.onclick = () => { state.status = b.dataset.s; state.shown = 60; renderList(); });
+  document.querySelectorAll("th[data-sort]").forEach(th => { th.classList.toggle("sorted", th.dataset.sort === state.sort); th.classList.toggle("asc", state.dir === "asc"); });
+
+  const arr = filtered();
+  const rows = arr.slice(0, state.shown).map(t => {
+    const lr = lastRemark(t);
+    const sd = t.submissionDate, n = sd ? daysFrom(sd) : null;
+    return `<tr data-id="${t.id}">
+      <td class="num" data-c="sn">${esc(t.sn ?? "")}</td>
+      <td data-c="cust"><b>${esc(t.customer)}</b><div class="sub">${esc(t.base)}${t.fy ? " · FY " + esc(t.fy) : ""}</div></td>
+      <td class="mono" data-c="tno">${esc(t.tenderNo)}<div class="sub">${esc(t.type)}</div></td>
+      <td data-c="item">${esc(t.item)}${(() => { const cs = comps(t); if (!cs.length) return ""; const bids = cs.map(c => Number(c.bid)).filter(b => b > 0); const rk = rankOf(t, cs); return `<div class="sub">vs ${esc(cs[0].name || "competitor")}${cs.length > 1 ? " +" + (cs.length - 1) + " more" : ""}${bids.length ? " · lowest ৳" + fmtN(Math.min(...bids)) : ""}${rk ? " · we were " + rk : ""}</div>`; })()}</td>
+      <td data-c="date" class="date${n != null && n >= 0 && n <= 7 ? " soon" : ""}">${fmtD(sd)}${n != null && n >= 0 ? `<div class="sub">in ${n} day${n === 1 ? "" : "s"}</div>` : ""}</td>
+      <td class="num" data-c="bid">${fmtN(t.bidAmount)}</td>
+      <td data-c="res"><span class="pill ${pillCls(t.result)}">${esc(t.result || "—")}</span></td>
+      <td data-c="prog">${progress(t)}</td>
+      <td data-c="rem">${lr ? `<div class="rem">${esc(lr.text)}</div>` : ""}</td></tr>`;
+  }).join("");
+  $("#rows").innerHTML = rows;
+  $("#rows").querySelectorAll("tr").forEach(tr => tr.onclick = () => openTender(tr.dataset.id));
+  const em = $("#emptyList");
+  em.hidden = arr.length > 0;
+  if (!arr.length) em.textContent = tenders.length ? "No tenders match these filters." : (loaded ? "No tenders yet. Use + New tender to add the first one." : "Loading tenders…");
+  const mb = $("#moreBtn");
+  mb.hidden = arr.length <= state.shown;
+  mb.textContent = `Show more (${arr.length - state.shown} left)`;
+}
+$("#moreBtn").onclick = () => { state.shown += 100; renderList(); };
+document.querySelectorAll("th[data-sort]").forEach(th => th.onclick = () => {
+  const k = th.dataset.sort;
+  if (state.sort === k) state.dir = state.dir === "asc" ? "desc" : "asc"; else { state.sort = k; state.dir = (k === "sn" || k === "bidAmount" || k === "submissionDate") ? "desc" : "asc"; }
+  saveUi(); renderList();
+});
+let qT; $("#q").oninput = e => { clearTimeout(qT); qT = setTimeout(() => { state.q = e.target.value; state.shown = 60; renderList(); }, 120); };
+$("#fCust").onchange = e => { state.cust = e.target.value; state.shown = 60; renderList(); };
+$("#fFy").onchange = e => { state.fy = e.target.value; state.shown = 60; renderList(); };
+$("#fFlag").onchange = e => { state.flag = e.target.value; state.shown = 60; renderList(); };
+$("#fSort").value = state.sort + ":" + state.dir;
+$("#fSort").onchange = e => { const [k, d] = e.target.value.split(":"); state.sort = k; state.dir = d; state.shown = 60; saveUi(); renderList(); };
+
+function fillLists() {
+  const uniq = k => [...new Set(tenders.map(t => t[k]).filter(Boolean).map(String))].sort();
+  const opt = (arr) => arr.map(v => `<option value="${esc(v)}">`).join("");
+  $("#dl-customer").innerHTML = opt(uniq("customer"));
+  $("#dl-base").innerHTML = opt(uniq("base"));
+  $("#dl-fy").innerHTML = opt(uniq("fy"));
+  $("#dl-item").innerHTML = opt(uniq("item").slice(0, 400));
+  $("#dl-engine").innerHTML = opt(uniq("engineModel"));
+  $("#dl-competitor").innerHTML = opt([...new Set(tenders.flatMap(t => comps(t).map(c => c.name)).filter(Boolean))].sort());
+  const sel = (el, arr, first) => { const v = el.value; el.innerHTML = `<option value="">${first}</option>` + arr.map(x => `<option${x === v ? " selected" : ""}>${esc(x)}</option>`).join(""); };
+  sel($("#fCust"), uniq("customer"), "All customers");
+  sel($("#fFy"), uniq("fy").reverse(), "All FY");
+}
+
+/* ---------- calendar ---------- */
+function renderCal() {
+  if (!state.month) state.month = TODAY.slice(0,7);
+  const [Y, M] = state.month.split("-").map(Number);
+  $("#mTitle").textContent = ["January","February","March","April","May","June","July","August","September","October","November","December"][M-1] + " " + Y;
+  const first = new Date(Y, M-1, 1);
+  const start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7)); // Monday start
+  const ev = events();
+  const byDay = {};
+  ev.forEach(e => (byDay[e.d] = byDay[e.d] || []).push(e));
+  let html = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => `<div class="dow">${d}</div>`).join("");
+  const d = new Date(start);
+  for (let i = 0; i < 42; i++) {
+    const k = iso(d), list = byDay[k] || [];
+    const out = d.getMonth() !== M-1;
+    if (i === 35 && out) break;
+    html += `<div class="day${out ? " out" : ""}${k === TODAY ? " today" : ""}" data-day="${k}"><span class="dn">${d.getDate()}</span>` +
+      list.slice(0, 4).map(e => `<button class="ev ${e.k}${e.done ? " done" : ""}" data-id="${e.t.id}" title="${esc(e.label)}">${esc(e.label)}</button>`).join("") +
+      (list.length > 4 ? `<button class="ev" style="--c:var(--muted);--cb:var(--soft)" data-day="${k}">+${list.length - 4} more</button>` : "") + `</div>`;
+    d.setDate(d.getDate() + 1);
+  }
+  $("#month").innerHTML = html;
+  $("#month").querySelectorAll(".ev[data-id]").forEach(b => b.onclick = () => openTender(b.dataset.id));
+  $("#month").querySelectorAll(".ev[data-day]").forEach(b => b.onclick = () => renderAgenda(b.dataset.day));
+  const phone = () => matchMedia("(max-width:560px)").matches;
+  $("#month").querySelectorAll(".day[data-day]").forEach(el => el.onclick = e => {
+    if (!phone() && e.target.closest(".ev")) return;
+    if (!(byDay[el.dataset.day] || []).length && !phone()) return;
+    renderAgenda(el.dataset.day);
+    if (matchMedia("(max-width:900px)").matches) $("#agenda").scrollIntoView({behavior: "smooth", block: "start"});
+  });
+  renderAgenda();
+}
+function agItem(e, lateTag) {
+  const dd = parse(e.d);
+  const tag = lateTag ? '<span class="tag late">Overdue · </span>' : "";
+  const kn = {sub:"Submission", del:"Delivery", fu:"Follow-up", bg:"BG/PG"}[e.k];
+  return `<button class="ag" data-id="${e.t.id}"><div class="d">${dd.getDate()}<small>${MON[dd.getMonth()]}</small></div><div class="t">${tag}<span class="tag ${e.k}">${kn}</span><b>${esc(e.t.customer)} · ${esc(e.t.item || e.t.tenderNo)}</b><span class="sub">${e.k === "fu" ? esc(e.label) : esc(e.t.tenderNo)}</span></div></button>`;
+}
+function renderAgenda(day) {
+  const ev = events();
+  let html;
+  if (day) {
+    const list = ev.filter(e => e.d === day);
+    html = `<h3>${fmtD(day)}</h3>` + list.map(e => agItem(e)).join("") + `<div class="actions"><button class="btn ghost" id="agBack">Back to upcoming</button></div>`;
+  } else {
+    const open = ev.filter(e => !e.done);
+    const overdue = open.filter(e => (e.k === "del" || e.k === "fu") && daysFrom(e.d) < 0).sort((a,b) => a.d < b.d ? -1 : 1);
+    const next = open.filter(e => daysFrom(e.d) >= 0 && daysFrom(e.d) <= 60).sort((a,b) => a.d < b.d ? -1 : 1);
+    html = `<h3>Upcoming deadlines</h3>`;
+    html += `<div class="grp">Next 60 days</div>` + (next.length ? next.map(e => agItem(e)).join("") : `<p class="sub">Nothing due in the next 60 days.</p>`);
+    if (overdue.length) html += `<div class="grp">Past commitment, not closed (${overdue.length})</div>` + overdue.slice(0, 25).map(e => agItem(e, true)).join("");
+  }
+  $("#agenda").innerHTML = html;
+  $("#agenda").querySelectorAll(".ag").forEach(b => b.onclick = () => openTender(b.dataset.id));
+  const bk = $("#agBack"); if (bk) bk.onclick = () => renderAgenda();
+}
+const shiftM = n => { const [y,m] = state.month.split("-").map(Number); const d = new Date(y, m-1+n, 1); state.month = d.getFullYear() + "-" + pad(d.getMonth()+1); renderCal(); };
+$("#prevM").onclick = () => shiftM(-1); $("#nextM").onclick = () => shiftM(1); $("#todayM").onclick = () => { state.month = TODAY.slice(0,7); renderCal(); };
+
+/* ---------- drawer ---------- */
+function fieldHtml(t, f) {
+  const [k, label, type, extra, wide] = f;
+  const v = t[k] ?? "";
+  const id = "d-" + k;
+  let input;
+  if (type === "sel") {
+    const opts = extra.includes(v) ? extra : [...extra, v];
+    input = `<select id="${id}" data-k="${k}">${opts.map(o => `<option value="${esc(o)}"${o === v ? " selected" : ""}>${esc(o || "—")}</option>`).join("")}</select>`;
+  } else if (type === "date") input = `<input id="${id}" data-k="${k}" type="date" value="${esc(v)}">`;
+  else if (type === "num") input = `<input id="${id}" data-k="${k}" data-num="1" inputmode="decimal" value="${esc(v === null ? "" : fmtN(v))}">`;
+  else input = `<input id="${id}" data-k="${k}" value="${esc(v)}"${extra ? ` list="${extra}"` : ""}${/No$|^tenderNo$/.test(k) ? ' class="mono"' : ""}>`;
+  return `<div class="fld${wide ? " wide" : ""}"><label for="${id}">${esc(label)}</label>${input}</div>`;
+}
+function openTender(id, focus) {
+  const t = byId.get(id); if (!t) return;
+  state.open = id;
+  const rems = (t.remarks || []).slice().sort((a,b) => (a.at||"") < (b.at||"") ? 1 : -1);
+  const dr = $("#drawer");
+  dr.innerHTML = `
+    <div class="dhead"><div class="t"><div class="sub">S/N ${esc(t.sn ?? "—")} · ${esc(t.customer)} ${t.base ? "· " + esc(t.base) : ""}</div>
+      <h2>${esc(t.item || "Untitled tender")}</h2><div class="mono sub">${esc(t.tenderNo)}</div></div>
+      <button class="x" id="dClose" aria-label="Close">×</button></div>
+    <div class="dbody">
+      <div class="sect"><h3>Result</h3><div class="seg" id="dResult">${RESULTS.map(r => `<button type="button" aria-pressed="${t.result === r}" data-r="${r}">${r}</button>`).join("")}</div></div>
+      ${hasSteps(t) ? '<div class="sect" id="paySect"></div>' : ""}<div class="sect"><h3>Competitors</h3><div class="comps" id="compBox">${comps(t).map(compRowHtml).join("")}</div><div class="actions" style="margin-top:8px"><button type="button" class="btn" id="compAdd">+ Add competitor</button><span class="note" id="compRank"></span></div></div>
+      <div class="sect"><h3>Remarks &amp; updates</h3>
+        <div class="addrem">
+          <select id="rKind" aria-label="Remark type">${KINDS.map(k => `<option>${k}</option>`).join("")}</select>
+          <div class="fld" style="flex-direction:row;align-items:center;gap:6px"><label for="rFollow" style="white-space:nowrap">Follow up on</label><input id="rFollow" type="date" style="max-width:170px"></div>
+          <textarea id="rText" placeholder="e.g. Bill submitted to NSD accounts, cheque expected next week"></textarea>
+        </div>
+        <div class="actions" style="margin-top:0;margin-bottom:6px"><button class="btn primary" id="rAdd">Add remark</button><span class="note">A follow-up date shows on the calendar.</span></div>
+        <div class="timeline">${rems.map(r => `<div class="re"><div class="when">${fmtD(r.at)}${r.followUp ? `<div class="tag fu">Follow up ${fmtD(r.followUp)}</div>` : ""}</div>
+          <div><span class="kind ${esc((r.kind||"").replace("/",""))}">${esc(r.kind || "General")}</span>${stepTag(r)}<span class="txt">${esc(r.text)}</span><div class="by">${esc(r.uid ? (names[r.uid] || "Team member") : (r.by || ""))}</div></div>
+          <div>${r.followUp && !r.doneAt ? `<button class="btn ghost" data-done="${esc(r.id)}" title="Mark follow-up done">✓ Done</button>` : ""}${r.uid && r.uid === myId ? `<button class="btn ghost" data-del="${esc(r.id)}" title="Delete remark">Delete</button>` : ""}</div></div>`).join("") || '<p class="sub">No remarks yet.</p>'}</div>
+      </div>
+      ${FIELDS.map(([g, fs]) => `<div class="sect"><h3>${g}</h3><div class="grid">${fs.map(f => fieldHtml(t, f)).join("")}</div></div>`).join("")}
+      <div class="sect"><h3>Danger zone</h3><div class="actions" style="margin-top:0"><button class="btn" id="dDelete">Delete tender</button><span class="note" id="delNote"></span></div></div>
+    </div>
+    <div class="dfoot"><button class="btn primary" id="dSave" disabled>Save changes</button><button class="btn" id="dCancel">Close</button><span class="note" id="dNote"></span></div>`;
+  dr.hidden = false; $("#scrim").hidden = false;
+  const dirty = () => { const c = changes(t); $("#dSave").disabled = !Object.keys(c).length || !canWrite; $("#dNote").textContent = Object.keys(c).length ? Object.keys(c).length + " unsaved change" + (Object.keys(c).length > 1 ? "s" : "") : ""; };
+  dr.querySelectorAll("[data-k]").forEach(el => { el.oninput = dirty; el.onchange = dirty; });
+  const showRank = () => { const list = readComps($("#compBox")); const r = rankOf({bidAmount: Number(($("#d-bidAmount")?.value || "").replace(/[,\s৳]/g, "")) || t.bidAmount}, list); $("#compRank").textContent = r ? "Our BTL bid ranks " + r : (list.length ? "Add bid amounts to see our position." : "No competitors recorded yet."); };
+  wireComps($("#compBox"), () => { dirty(); showRank(); });
+  $("#compAdd").onclick = () => { $("#compBox").insertAdjacentHTML("beforeend", compRowHtml()); $("#compBox").lastElementChild.querySelector(".c-name").focus(); };
+  showRank();
+  $("#dClose").onclick = $("#dCancel").onclick = closeDrawer;
+  $("#dSave").onclick = async () => {
+    const c = changes(t);
+    if (c.submissionDate && !t.fy && !c.fy) c.fy = fyOf(c.submissionDate);
+    if (c.competitors) Object.assign(c, compLegacy(c.competitors));
+    if (c.paidAmount != null && !("paymentStatus" in c)) { const v = Number(c.bidAmount ?? t.bidAmount) || 0; c.paymentStatus = v && c.paidAmount >= v ? "Rcvd" : c.paidAmount > 0 ? "Partially Rcvd" : t.paymentStatus || ""; if (!t.paidDate && !c.paidDate && c.paidAmount > 0) c.paidDate = TODAY; }
+    if (c.billDate && !t.paymentStatus && !c.paymentStatus) c.paymentStatus = "Bill Submitted";
+    await write(id, c, "Saved");
+  };
+  $("#dResult").querySelectorAll("button").forEach(b => b.onclick = async () => {
+    const r = b.dataset.r === t.result ? "" : b.dataset.r;
+    await write(id, {result: r}, r ? "Marked " + r : "Result cleared");
+  });
+  $("#rAdd").onclick = async () => {
+    const text = $("#rText").value.trim();
+    if (!text) { $("#rText").focus(); return; }
+    const r = {id: "m" + Date.now().toString(36) + Math.random().toString(36).slice(2,6), at: TODAY, kind: $("#rKind").value, text};
+    const fu = $("#rFollow").value; if (fu) r.followUp = fu;
+    if (myId) r.uid = myId;
+    const cur = byId.get(id);
+    await write(id, {remarks: [...(cur.remarks || []), r]}, "Remark added");
+  };
+  dr.querySelectorAll("[data-done]").forEach(b => b.onclick = async () => {
+    const cur = byId.get(id);
+    await write(id, {remarks: (cur.remarks||[]).map(r => r.id === b.dataset.done ? {...r, doneAt: TODAY} : r)}, "Follow-up closed");
+  });
+  dr.querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    const cur = byId.get(id);
+    await write(id, {remarks: (cur.remarks||[]).filter(r => r.id !== b.dataset.del)}, "Remark deleted");
+  });
+  let armed = false;
+  $("#dDelete").onclick = async () => {
+    if (!armed) { armed = true; $("#dDelete").textContent = "Click again to delete"; $("#delNote").textContent = "This removes the tender and its remarks for everyone."; return; }
+    try { await db.collection("tenders").doc(id).delete(); toast("Tender deleted"); closeDrawer(); } catch (e) { $("#delNote").textContent = "Could not delete: " + (e.message || e.code); }
+  };
+  if (!canWrite) dr.querySelectorAll("input,select,textarea,.seg button,#rAdd,#dDelete,#compAdd,.c-del").forEach(el => el.disabled = true);
+  renderPaySect(id);
+  if (focus === "pay" && $("#paySect")) $("#paySect").scrollIntoView({block: "start"});
+}
+function changes(t) {
+  const c = {};
+  $("#drawer").querySelectorAll("[data-k]").forEach(el => {
+    const k = el.dataset.k; let v = el.value.trim();
+    if (el.dataset.num) { v = v === "" ? null : Number(v.replace(/[,\s৳]/g, "")); if (v !== null && isNaN(v)) return; }
+    const old = t[k] ?? (el.dataset.num ? null : "");
+    if (v !== old) c[k] = v;
+  });
+  const box = $("#compBox");
+  if (box) { const nc = readComps(box); const oc = comps(t).map(x => ({name: x.name || "", bid: x.bid ?? null, note: x.note || ""})).filter(x => x.name || x.bid != null || x.note); if (JSON.stringify(nc) !== JSON.stringify(oc)) c.competitors = nc; }
+  return c;
+}
+function closeDrawer() { $("#drawer").hidden = true; $("#scrim").hidden = true; state.open = null; }
+$("#scrim").onclick = closeDrawer;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#drawer").hidden) closeDrawer(); });
+
+async function write(id, data, msg) {
+  if (!db) { toast("Not connected, nothing saved"); return false; }
+  try {
+    data.updatedAt = new Date().toISOString();
+    await db.collection("tenders").doc(id).update(data);
+    toast(msg); return true;
+  } catch (e) {
+    if (e.code === "invalid_argument") { canWrite = false; toast("You have view-only access to this register"); }
+    else toast("Not saved: " + (e.message || e.code));
+    return false;
+  }
+}
+
+/* ---------- new tender ---------- */
+let newType = "OTM";
+$("#n-compAdd").onclick = () => { $("#n-comps").insertAdjacentHTML("beforeend", compRowHtml()); $("#n-comps").lastElementChild.querySelector(".c-name").focus(); };
+wireComps($("#n-comps"));
+$("#n-type").querySelectorAll("button").forEach(b => b.onclick = () => { newType = b.textContent; $("#n-type").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); });
+const autoFy = () => { const f = $("#n-fy"); if (!f.dataset.touched) f.value = fyOf($("#n-issueDate").value || $("#n-submissionDate").value); };
+$("#n-issueDate").onchange = autoFy; $("#n-submissionDate").onchange = autoFy;
+$("#n-fy").oninput = e => e.target.dataset.touched = "1";
+$("#n-customer").onchange = () => {
+  const c = $("#n-customer").value; const bases = [...new Set(tenders.filter(t => t.customer === c).map(t => t.base).filter(Boolean))].sort();
+  if (bases.length) $("#dl-base").innerHTML = bases.map(v => `<option value="${esc(v)}">`).join("");
+};
+async function saveNew(another) {
+  const f = $("#newForm");
+  if (!f.reportValidity()) return;
+  if (!db) { $("#newNote").textContent = "Not connected to the register. Reload the page and try again."; return; }
+  const v = id => $("#n-" + id).value.trim();
+  const tn = v("tenderNo");
+  const dup = tenders.find(t => (t.tenderNo || "").toLowerCase() === tn.toLowerCase());
+  if (dup && !f.dataset.dupOk) { f.dataset.dupOk = "1"; $("#newNote").innerHTML = `<span class="err">Tender no. already exists (S/N ${esc(dup.sn)}, ${esc(dup.customer)}). Press save again to add it anyway.</span>`; return; }
+  const bid = v("bidAmount").replace(/[,\s৳]/g, "");
+  const maxSn = tenders.reduce((m,t) => Math.max(m, Number(t.sn) || 0), 0);
+  const data = {
+    sn: maxSn + 1, customer: v("customer"), base: v("base"), fy: v("fy") || fyOf(v("issueDate") || v("submissionDate")), tenderNo: tn, type: newType,
+    issueDate: v("issueDate"), submissionDate: v("submissionDate"), submitted: "", result: "On Process", item: v("item"),
+    bidAmount: bid && !isNaN(bid) ? Number(bid) : null, engineModel: v("engineModel"), quotationNo: v("quotationNo"),
+    remarks: [], createdAt: TODAY, updatedAt: new Date().toISOString(),
+  };
+  data.competitors = readComps($("#n-comps"));
+  Object.assign(data, compLegacy(data.competitors));
+  const rem = v("remark");
+  if (rem) data.remarks.push({id: "m" + Date.now().toString(36), at: TODAY, kind: "General", text: rem, ...(myId ? {uid: myId} : {})});
+  const btns = [$("#saveNew"), $("#saveNewAnother")]; btns.forEach(b => b.disabled = true);
+  try {
+    const ref = db.collection("tenders").doc("n" + Date.now().toString(36));
+    await ref.set(data);
+    delete f.dataset.dupOk;
+    toast("Tender S/N " + data.sn + " saved");
+    const keep = {customer: v("customer"), base: v("base")};
+    f.reset(); $("#n-fy").dataset.touched = ""; $("#n-comps").innerHTML = "";
+    if (another) { $("#n-customer").value = keep.customer; $("#n-base").value = keep.base; $("#n-tenderNo").focus(); $("#newNote").textContent = "Saved S/N " + data.sn + ". Customer and base kept for the next entry."; }
+    else { $("#newNote").textContent = ""; go("list"); setTimeout(() => openTender(ref.id), 300); }
+  } catch (e) {
+    $("#newNote").innerHTML = `<span class="err">${e.code === "invalid_argument" ? "You have view-only access, so the tender was not saved." : e.code === "quota_exceeded" ? "The register is full. Delete old tenders to make room." : "Not saved: " + esc(e.message || e.code)}</span>`;
+  } finally { btns.forEach(b => b.disabled = false); }
+}
+$("#newForm").onsubmit = e => { e.preventDefault(); saveNew(false); };
+$("#saveNewAnother").onclick = () => saveNew(true);
+
+/* ---------- export ---------- */
+$("#exportBtn").onclick = async () => {
+  const cols = ALLF.map(f => f[0]);
+  const head = ["S/N", ...ALLF.map(f => f[1]), "Competitors", "Result", "Navy payment steps", "Remarks"];
+  const q = s => `"${String(s ?? "").replace(/"/g, '""')}"`;
+  const lines = [head.map(q).join(",")].concat(filtered().map(t => [t.sn, ...cols.map(c => t[c]), comps(t).map(x => x.name + (x.bid ? " (৳" + x.bid + ")" : "") + (x.note ? " - " + x.note : "")).join("; "), t.result, hasSteps(t) ? STEPS.map((s, i) => (i + 1) + ". " + s + (stepDone(t, i) ? " [done " + t.paySteps["s" + i].at + "]" : " [pending]")).join("; ") : "", (t.remarks||[]).map(r => `[${r.at} ${r.kind}] ${r.text}`).join(" | ")].map(q).join(",")));
+  try { await dl.save({filename: "tender-status-" + TODAY + ".csv", data: new Blob(["﻿" + lines.join("\r\n")], {type: "text/csv"})}); }
+  catch (e) { toast("Export cancelled"); }
+};
+
+/* ---------- views ---------- */
+function go(v) {
+  state.view = v; saveUi();
+  ["list","cal","pay","new"].forEach(x => { $("#view-" + x).hidden = x !== v; $("#tab-" + x).setAttribute("aria-selected", x === v); });
+  if (v === "list") renderList(); else if (v === "cal") renderCal(); else if (v === "pay") renderPay(); else $("#n-customer").focus();
+}
+document.querySelectorAll(".tab").forEach(b => b.onclick = () => go(b.dataset.view));
+
+function renderAll() {
+  renderGauges(); fillLists();
+  if (state.view === "list") renderList(); else if (state.view === "cal") renderCal(); else if (state.view === "pay") renderPay();
+  if (state.open && !$("#drawer").hidden) {
+    const dr = $("#drawer"); const hasDirty = byId.get(state.open) && (Object.keys(changes(byId.get(state.open))).length || ($("#rText")?.value || "").trim() || ($("#psText")?.value || "").trim());
+    if (!byId.get(state.open)) closeDrawer();
+    else if (!hasDirty) { const sc = dr.querySelector(".dbody")?.scrollTop || 0; openTender(state.open); dr.querySelector(".dbody").scrollTop = sc; }
+    else if (!($("#psText")?.value || "").trim()) renderPaySect(state.open);
+  }
+}
+
+/* ---------- boot ---------- */
+let loaded = false;
+go(state.view);
+renderGauges();
+(async () => {
+  const status = $("#status");
+  db = await window.claude?.use?.("db") ?? null;
+  if (!db) { status.textContent = "Sign in on claude.ai to open the shared tender register."; status.classList.add("warn"); renderList(); return; }
+  user = await window.claude.use("user");
+  dl = await window.claude.use("downloads");
+  $("#exportBtn").hidden = !dl;
+  try { myId = user ? await user.id() : null; const w = user?.can ? await user.can("data.write") : null; if (w === false) canWrite = false; } catch (e) {}
+  if (!canWrite) { $("#tab-new").hidden = true; }
+  const timer = setTimeout(() => { status.textContent = loaded ? "Showing saved data. It may be out of date until the connection returns." : "The tender register can't be reached yet. Check your connection."; status.classList.add("warn"); }, 10000);
+  db.collection("tenders").limit(1000).onSnapshot(async snap => {
+    tenders = snap.docs.map(d => ({id: d.id, ...d.data()}));
+    byId = new Map(tenders.map(t => [t.id, t]));
+    if (!snap.metadata.fromCache) { clearTimeout(timer); loaded = true; status.classList.remove("warn"); status.textContent = tenders.length + " tenders in the register · updates from your team appear live" + (canWrite ? "" : " · view only"); }
+    const uids = [...new Set(tenders.flatMap(t => (t.remarks||[]).map(r => r.uid)).filter(Boolean))].filter(u => !(u in names));
+    if (uids.length && user?.profiles) { try { const ps = await user.profiles(uids.slice(0, 64)); for (const u of uids) names[u] = ps?.[u]?.name || ""; } catch (e) {} }
+    renderAll();
+  }, e => { clearTimeout(timer); status.textContent = "The register stopped responding (" + e.code + "). Reload the page to reconnect."; status.classList.add("warn"); });
+})();
+})();
+</script>
