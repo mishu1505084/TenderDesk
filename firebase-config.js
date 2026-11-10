@@ -1,14 +1,10 @@
-// Paste your Firebase web app config between the braces below.
-// Find it in the Firebase console: Project settings > General > Your apps > SDK setup and configuration > Config.
-// This config is not a password. Access is controlled by the sign-in and the Firestore rules.
-window.FIREBASE_CONFIG = null;
-/* Example:
+// Firebase web app config for this site.
+// This config is not a password. Access is controlled by the Google sign-in and the Firestore rules.
 window.FIREBASE_CONFIG = {
-  apiKey: "AIza...",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abcdef"
+  apiKey: "AIzaSyArwab6wtl25zriDGtRVjOhz7zcX8u9z_o",
+  authDomain: "tenderdeskbcat.firebaseapp.com",
+  projectId: "tenderdeskbcat",
+  storageBucket: "tenderdeskbcat.firebasestorage.app",
+  messagingSenderId: "887065387015",
+  appId: "1:887065387015:web:43e520ebb5434d6969caa2"
 };
-*/
